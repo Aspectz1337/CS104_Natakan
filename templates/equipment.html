@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block crumb %}อุปกรณ์{% endblock %}
+{% block content %}
+<h2 class="page-title">จัดการอุปกรณ์</h2>
+<p class="page-sub">อุปกรณ์ที่ติดตั้งในแต่ละห้อง</p>
+
+<div class="card">
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="search-box"><span class="ico">⌕</span><input id="searchBox" placeholder="ค้นหา..." oninput="tableSearch('searchBox','mainTable')"></div>
+    </div>
+    {% if current_user.role in ['manager','admin'] %}<button class="btn btn-accent" onclick="openModal('addModal')">+ เพิ่มอุปกรณ์</button>{% endif %}
+  </div>
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead><tr><th>#</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>S/N</th><th>ที่ตั้ง</th><th>ติดตั้ง</th><th>สถานะ</th><th style="width:140px">จัดการ</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="mono" style="color:var(--muted)">{{ r.id }}</td>
+          <td><b>{{ r.name }}</b></td><td>{{ r.category or '—' }}</td>
+          <td><code style="font-size:12px">{{ r.serial_no or '—' }}</code></td>
+          <td><span class="badge badge-normal mono">{{ r.building_code }}</span> {{ r.room_number }}</td>
+          <td style="font-size:12.5px;color:var(--muted)">{{ r.installed_at or '—' }}</td>
+          <td>
+            {% if r.status=='active' %}<span class="badge badge-ok">{{ EQUIP_STATUS_LABELS[r.status] }}</span>
+            {% elif r.status=='broken' %}<span class="badge badge-broken">{{ EQUIP_STATUS_LABELS[r.status] }}</span>
+            {% elif r.status=='repairing' %}<span class="badge badge-prog">{{ EQUIP_STATUS_LABELS[r.status] }}</span>
+            {% else %}<span class="badge badge-cancel">{{ EQUIP_STATUS_LABELS[r.status] }}</span>{% endif %}
+          </td>
+          <td class="actions">
+            {% if current_user.role in ['manager','admin'] %}<button class="btn btn-sm btn-ghost" onclick="openModal('edit{{r.id}}')">✎</button>{% endif %}
+            {% if current_user.role=='admin' %}<a class="btn btn-sm btn-danger" href="{{ url_for('equipment_delete', eid=r.id) }}" onclick="return confirm('ยืนยันการลบ?')">×</a>{% endif %}
+          </td>
+        </tr>
+        {% else %}<tr data-skip="1"><td colspan="8" class="empty">ยังไม่มีข้อมูล</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% for r in rows %}
+<div class="modal" id="edit{{r.id}}">
+  <div class="modal-box">
+    <h3>แก้ไขอุปกรณ์</h3>
+    <form method="post" action="{{ url_for('equipment_edit', eid=r.id) }}">
+      <div><label>ห้อง</label>
+        <select name="room_id" required>
+          {% for rm in rooms %}<option value="{{rm.id}}" {% if rm.id==r.room_id %}selected{% endif %}>{{rm.building_code}} · {{rm.room_number}}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>ชื่ออุปกรณ์</label><input name="name" value="{{r.name}}" required></div>
+      <div class="row-2">
+        <div><label>ประเภท</label><input name="category" value="{{r.category or ''}}"></div>
+        <div><label>Serial No.</label><input name="serial_no" value="{{r.serial_no or ''}}"></div>
+      </div>
+      <div class="row-2">
+        <div><label>วันที่ติดตั้ง</label><input type="date" name="installed_at" value="{{r.installed_at or ''}}"></div>
+        <div><label>สถานะ</label>
+          <select name="status">
+            {% for k,v in EQUIP_STATUS_LABELS.items() %}<option value="{{k}}" {% if k==r.status %}selected{% endif %}>{{v}}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('edit{{r.id}}')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<div class="modal" id="addModal">
+  <div class="modal-box">
+    <h3>เพิ่มอุปกรณ์</h3>
+    <form method="post" action="{{ url_for('equipment_add') }}">
+      <div><label>ห้อง</label>
+        <select name="room_id" required>
+          <option value="">— เลือก —</option>
+          {% for rm in rooms %}<option value="{{rm.id}}">{{rm.building_code}} · {{rm.room_number}}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>ชื่ออุปกรณ์</label><input name="name" required></div>
+      <div class="row-2">
+        <div><label>ประเภท</label><input name="category" placeholder="คอมพิวเตอร์"></div>
+        <div><label>Serial No.</label><input name="serial_no" placeholder="PC-001"></div>
+      </div>
+      <div class="row-2">
+        <div><label>วันที่ติดตั้ง</label><input type="date" name="installed_at"></div>
+        <div><label>สถานะ</label>
+          <select name="status">
+            {% for k,v in EQUIP_STATUS_LABELS.items() %}<option value="{{k}}">{{v}}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

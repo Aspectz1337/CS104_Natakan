@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block crumb %}แดชบอร์ด{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:14px;margin-bottom:24px">
+  <div>
+    <h2 class="page-title">ภาพรวมระบบ</h2>
+    <p class="page-sub" style="margin-bottom:0">สรุปข้อมูลและสถานะการแจ้งซ่อมล่าสุด</p>
+  </div>
+  <a href="{{ url_for('repairs') }}" class="btn btn-accent">+ แจ้งซ่อมใหม่</a>
+</div>
+
+{% if current_user.role in ['technician','manager','admin'] %}
+<div class="stats">
+  <div class="stat"><div class="lbl"><span class="ico-sq">▤</span>อาคาร</div><div class="num">{{ stats.buildings }}</div></div>
+  <div class="stat"><div class="lbl"><span class="ico-sq">▢</span>ห้อง</div><div class="num">{{ stats.rooms }}</div></div>
+  <div class="stat"><div class="lbl"><span class="ico-sq">▣</span>อุปกรณ์</div><div class="num">{{ stats.equipment }}</div></div>
+  {% if current_user.role in ['manager','admin'] %}
+  <div class="stat"><div class="lbl"><span class="ico-sq">◉</span>ช่าง</div><div class="num">{{ stats.technicians }}</div></div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="stats">
+  <div class="stat" style="border-left:3px solid #f59e0b"><div class="lbl">รอดำเนินการ</div><div class="num">{{ stats.pending }}</div></div>
+  <div class="stat" style="border-left:3px solid #3b82f6"><div class="lbl">กำลังซ่อม</div><div class="num">{{ stats.in_progress }}</div></div>
+  <div class="stat" style="border-left:3px solid #10b981"><div class="lbl">ซ่อมเสร็จ</div><div class="num">{{ stats.done }}</div></div>
+  {% set total = (stats.pending + stats.in_progress + stats.done) or 1 %}
+  <div class="stat"><div class="lbl">อัตราสำเร็จ</div><div class="num">{{ ((stats.done/total)*100)|round(0)|int }}<span style="font-size:14px;color:var(--muted);font-weight:500">%</span></div><div class="delta">จากทั้งหมด {{ total }} รายการ</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="grid-2">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="font-size:15px;font-weight:600">สัดส่วนสถานะ</h3>
+      <span style="font-size:11.5px;color:var(--muted)">{{ total }} รายการ</span>
+    </div>
+    <div class="chart-bar" style="height:12px">
+      <span style="width:{{ (stats.pending/total*100)|round(1) }}%;background:#f59e0b"></span>
+      <span style="width:{{ (stats.in_progress/total*100)|round(1) }}%;background:#3b82f6"></span>
+      <span style="width:{{ (stats.done/total*100)|round(1) }}%;background:#10b981"></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:12.5px;color:var(--text-2);flex-wrap:wrap;gap:10px">
+      <span><span style="display:inline-block;width:8px;height:8px;background:#f59e0b;border-radius:2px;margin-right:6px"></span>รอ <b>{{ stats.pending }}</b></span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#3b82f6;border-radius:2px;margin-right:6px"></span>กำลังซ่อม <b>{{ stats.in_progress }}</b></span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:2px;margin-right:6px"></span>เสร็จ <b>{{ stats.done }}</b></span>
+    </div>
+
+    {% if current_user.role in ['manager','admin'] %}
+    <h3 style="font-size:15px;font-weight:600;margin:24px 0 14px">ภาระงานช่าง (งานค้าง)</h3>
+    {% for t in tech_load %}
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span style="color:var(--text-2)">{{ t.name }}</span><span class="mono" style="color:var(--muted)">{{ t.cnt or 0 }}</span></div>
+      <div class="chart-bar"><span style="width:{{ ((t.cnt or 0)/(max_load or 1)*100)|round(1) }}%;background:linear-gradient(90deg,var(--accent),#0d9488)"></span></div>
+    </div>
+    {% else %}<div class="empty">ยังไม่มีข้อมูล</div>{% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="font-size:15px;font-weight:600">ใบแจ้งซ่อมล่าสุด</h3>
+      <a href="{{ url_for('repairs') }}" style="font-size:12.5px;color:var(--accent-2);text-decoration:none;font-weight:500">ดูทั้งหมด →</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>เลขที่</th><th>อุปกรณ์</th><th>ผู้แจ้ง</th><th>สถานะ</th></tr></thead>
+        <tbody>
+          {% for r in recent %}
+          <tr>
+            <td class="mono" style="color:var(--muted)">#{{ '%04d'|format(r.id) }}</td>
+            <td style="font-weight:500">{{ r.equip_name }}</td>
+            <td style="color:var(--text-2)">{{ r.reporter_name }}</td>
+            <td>
+              {% if r.status=='pending' %}<span class="badge badge-wait">{{ STATUS_LABELS[r.status] }}</span>
+              {% elif r.status=='in_progress' %}<span class="badge badge-prog">{{ STATUS_LABELS[r.status] }}</span>
+              {% elif r.status=='done' %}<span class="badge badge-done">{{ STATUS_LABELS[r.status] }}</span>
+              {% else %}<span class="badge badge-cancel">{{ STATUS_LABELS[r.status] }}</span>{% endif %}
+            </td>
+          </tr>
+          {% else %}<tr><td colspan="4" class="empty">ยังไม่มีใบแจ้งซ่อม</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>@media(max-width:980px){.grid-2{grid-template-columns:1fr !important}}</style>
+{% endblock %}

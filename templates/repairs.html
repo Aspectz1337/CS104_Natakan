@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block crumb %}ใบแจ้งซ่อม{% endblock %}
+{% block content %}
+<h2 class="page-title">ใบแจ้งซ่อม</h2>
+<p class="page-sub">เรียงตาม priority และ status อัตโนมัติ</p>
+
+<div class="card">
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="search-box"><span class="ico">⌕</span><input id="searchBox" placeholder="ค้นหา..." oninput="filterRepairs()"></div>
+      <div class="filter-tabs" id="statusTabs">
+        <button class="active" data-s="">ทั้งหมด</button>
+        <button data-s="pending">รอ</button>
+        <button data-s="in_progress">กำลังซ่อม</button>
+        <button data-s="done">เสร็จ</button>
+      </div>
+    </div>
+    <button class="btn btn-accent" onclick="openModal('addModal')">+ แจ้งซ่อมใหม่</button>
+  </div>
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead><tr><th>#</th><th>ความเร่งด่วน</th><th>อุปกรณ์</th><th>ที่ตั้ง</th><th>ผู้แจ้ง</th><th>ช่าง</th><th>สถานะ</th><th>เวลาแจ้ง</th><th style="width:150px">จัดการ</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-status="{{ r.status }}">
+          <td class="mono" style="color:var(--muted)">#{{ '%04d'|format(r.id) }}</td>
+          <td>
+            {% if r.priority=='urgent' %}<span class="badge badge-urgent">🔥 {{ PRIORITY_LABELS[r.priority] }}</span>
+            {% elif r.priority=='high' %}<span class="badge badge-high">↑ {{ PRIORITY_LABELS[r.priority] }}</span>
+            {% elif r.priority=='low' %}<span class="badge badge-low">↓ {{ PRIORITY_LABELS[r.priority] }}</span>
+            {% else %}<span class="badge badge-normal">{{ PRIORITY_LABELS[r.priority] }}</span>{% endif %}
+          </td>
+          <td><b>{{ r.equip_name }}</b></td>
+          <td><span class="badge badge-normal mono">{{ r.building_code }}</span> {{ r.room_number }}</td>
+          <td style="color:var(--text-2)">{{ r.reporter_name }}</td>
+          <td style="color:var(--text-2)">{{ r.assignee_name or '—' }}</td>
+          <td>
+            {% if r.status=='pending' %}<span class="badge badge-wait">{{ STATUS_LABELS[r.status] }}</span>
+            {% elif r.status=='in_progress' %}<span class="badge badge-prog">{{ STATUS_LABELS[r.status] }}</span>
+            {% elif r.status=='done' %}<span class="badge badge-done">{{ STATUS_LABELS[r.status] }}</span>
+            {% else %}<span class="badge badge-cancel">{{ STATUS_LABELS[r.status] }}</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--muted)">{{ r.reported_at[:16] }}</td>
+          <td class="actions">
+            <a class="btn btn-sm btn-ghost" href="{{ url_for('repairs_detail', rid=r.id) }}" title="ดู">◐</a>
+            {% if current_user.role in ['technician','manager','admin'] %}<button class="btn btn-sm btn-ghost" onclick="openModal('edit{{r.id}}')">✎</button>{% endif %}
+            {% if current_user.role in ['manager','admin'] %}<a class="btn btn-sm btn-danger" href="{{ url_for('repairs_delete', rid=r.id) }}" onclick="return confirm('ยืนยันการลบ?')">×</a>{% endif %}
+          </td>
+        </tr>
+        {% else %}<tr data-skip="1"><td colspan="9" class="empty">ยังไม่มีใบแจ้งซ่อม</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% for r in rows %}
+<div class="modal" id="edit{{r.id}}">
+  <div class="modal-box">
+    <h3>ใบแจ้งซ่อม #{{'%04d'|format(r.id)}}</h3>
+    <form method="post" action="{{ url_for('repairs_edit', rid=r.id) }}">
+      <div><label>อุปกรณ์</label>
+        <select name="equipment_id" required>
+          {% for e in equipment %}<option value="{{e.id}}" {% if e.id==r.equipment_id %}selected{% endif %}>{{e.name}} ({{e.building_code}}/{{e.room_number}})</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>รายละเอียดอาการ</label><textarea name="description" required>{{r.description}}</textarea></div>
+      <div class="row-2">
+        <div><label>ความเร่งด่วน</label>
+          <select name="priority">
+            {% for k,v in PRIORITY_LABELS.items() %}<option value="{{k}}" {% if k==r.priority %}selected{% endif %}>{{v}}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>สถานะ</label>
+          <select name="status">
+            {% for k,v in STATUS_LABELS.items() %}<option value="{{k}}" {% if k==r.status %}selected{% endif %}>{{v}}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div><label>มอบหมายช่าง</label>
+        <select name="assignee_id">
+          <option value="">— ยังไม่มอบหมาย —</option>
+          {% for t in technicians %}<option value="{{t.id}}" {% if t.id==r.assignee_id %}selected{% endif %}>{{t.full_name}} ({{t.specialty or '-'}})</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>บันทึกการซ่อม / สิ่งที่แก้ไข</label><textarea name="resolution_note" placeholder="เช่น เปลี่ยน PSU, ทำความสะอาดคอยล์เย็น">{{r.resolution_note or ''}}</textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('edit{{r.id}}')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<div class="modal" id="addModal">
+  <div class="modal-box">
+    <h3>แจ้งซ่อมใหม่</h3>
+    <form method="post" action="{{ url_for('repairs_add') }}">
+      <div><label>อุปกรณ์</label>
+        <select name="equipment_id" required>
+          <option value="">— เลือก —</option>
+          {% for e in equipment %}<option value="{{e.id}}">{{e.name}} ({{e.building_code}}/{{e.room_number}})</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>รายละเอียดอาการ</label><textarea name="description" required placeholder="อธิบายปัญหา..."></textarea></div>
+      <div><label>ความเร่งด่วน</label>
+        <select name="priority">
+          {% for k,v in PRIORITY_LABELS.items() %}<option value="{{k}}" {% if k=='normal' %}selected{% endif %}>{{v}}</option>{% endfor %}
+        </select>
+      </div>
+      {% if current_user.role in ['technician','manager','admin'] %}
+      <div><label>มอบหมายช่าง</label>
+        <select name="assignee_id">
+          <option value="">— ยังไม่มอบหมาย —</option>
+          {% for t in technicians %}<option value="{{t.id}}">{{t.full_name}} ({{t.specialty or '-'}})</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>สถานะเริ่มต้น</label>
+        <select name="status">
+          {% for k,v in STATUS_LABELS.items() %}<option value="{{k}}">{{v}}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg-elev);border-radius:6px">ผู้แจ้ง: <b style="color:var(--text)">{{ current_user.full_name }}</b> · บันทึกอัตโนมัติ</div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')">ยกเลิก</button>
+        <button class="btn btn-accent">แจ้งซ่อม</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let currentStatus='';
+document.querySelectorAll('#statusTabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#statusTabs button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    currentStatus=b.dataset.s;
+    filterRepairs();
+  };
+});
+function filterRepairs(){
+  const q=document.getElementById('searchBox').value.toLowerCase();
+  document.querySelectorAll('#mainTable tbody tr').forEach(r=>{
+    if(r.dataset.skip)return;
+    const matchText=r.textContent.toLowerCase().includes(q);
+    const matchStatus=!currentStatus||r.dataset.status===currentStatus;
+    r.style.display=(matchText&&matchStatus)?'':'none';
+  });
+}
+</script>
+{% endblock %}

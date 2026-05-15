@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block crumb %}ผู้ใช้งาน{% endblock %}
+{% block content %}
+<h2 class="page-title">จัดการผู้ใช้งาน</h2>
+<p class="page-sub">บัญชีผู้ใช้ ช่าง และระดับสิทธิ์</p>
+
+<div class="card">
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="search-box"><span class="ico">⌕</span><input id="searchBox" placeholder="ค้นหา..." oninput="tableSearch('searchBox','mainTable')"></div>
+    </div>
+    <button class="btn btn-accent" onclick="openModal('addModal')">+ เพิ่มผู้ใช้</button>
+  </div>
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead><tr><th>#</th><th>Username</th><th>ชื่อ-นามสกุล</th><th>สิทธิ์</th><th>ความเชี่ยวชาญ</th><th>ติดต่อ</th><th>Login ล่าสุด</th><th>สถานะ</th><th style="width:110px">จัดการ</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr style="{% if not r.is_active %}opacity:.5{% endif %}">
+          <td class="mono" style="color:var(--muted)">{{ r.id }}</td>
+          <td class="mono" style="font-weight:500">{{ r.username }}{% if r.id==current_user.id %} <span style="color:var(--accent-2);font-size:11px">(คุณ)</span>{% endif %}</td>
+          <td>{{ r.full_name }}</td>
+          <td>
+            {% if r.role=='admin' %}<span class="badge" style="background:#fef3c7;color:#854d0e;border-color:#fde68a">⚡ {{ ROLE_LABELS[r.role] }}</span>
+            {% elif r.role=='manager' %}<span class="badge badge-prog">★ {{ ROLE_LABELS[r.role] }}</span>
+            {% elif r.role=='technician' %}<span class="badge badge-done">🔧 {{ ROLE_LABELS[r.role] }}</span>
+            {% else %}<span class="badge badge-normal">{{ ROLE_LABELS[r.role] }}</span>{% endif %}
+          </td>
+          <td style="color:var(--text-2)">{{ r.specialty or '—' }}</td>
+          <td style="font-size:12px;color:var(--muted)">
+            {% if r.phone %}{{ r.phone }}<br>{% endif %}
+            {% if r.email %}<span>{{ r.email }}</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--muted)">{{ r.last_login or 'ยังไม่เคย' }}</td>
+          <td>{% if r.is_active %}<span class="badge badge-ok">ใช้งาน</span>{% else %}<span class="badge badge-cancel">ปิด</span>{% endif %}</td>
+          <td class="actions">
+            <button class="btn btn-sm btn-ghost" onclick="openModal('edit{{r.id}}')">✎</button>
+            {% if r.id != current_user.id %}<a class="btn btn-sm btn-danger" href="{{ url_for('users_delete', uid=r.id) }}" onclick="return confirm('ลบ {{r.username}}?')">×</a>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% for r in rows %}
+<div class="modal" id="edit{{r.id}}">
+  <div class="modal-box">
+    <h3>แก้ไขผู้ใช้ · {{ r.username }}</h3>
+    <form method="post" action="{{ url_for('users_edit', uid=r.id) }}">
+      <div><label>ชื่อ-นามสกุล</label><input name="full_name" value="{{ r.full_name }}" required></div>
+      <div class="row-2">
+        <div><label>อีเมล</label><input type="email" name="email" value="{{ r.email or '' }}"></div>
+        <div><label>เบอร์โทร</label><input name="phone" value="{{ r.phone or '' }}"></div>
+      </div>
+      <div><label>รหัสผ่านใหม่ <span style="color:var(--muted);font-weight:400">(เว้นว่างถ้าไม่เปลี่ยน)</span></label><input type="password" name="password"></div>
+      <div class="row-2">
+        <div><label>ระดับสิทธิ์</label>
+          <select name="role" required>
+            {% for k,v in ROLE_LABELS.items() %}<option value="{{k}}" {% if k==r.role %}selected{% endif %}>{{v}}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>ความเชี่ยวชาญ</label><input name="specialty" value="{{ r.specialty or '' }}" placeholder="ไฟฟ้า, คอมพิวเตอร์"></div>
+      </div>
+      <div><label><input type="checkbox" name="is_active" value="1" {% if r.is_active %}checked{% endif %} style="width:auto;margin-right:6px">ใช้งานอยู่ (เปิดให้ login)</label></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('edit{{r.id}}')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<div class="modal" id="addModal">
+  <div class="modal-box">
+    <h3>เพิ่มผู้ใช้ใหม่</h3>
+    <form method="post" action="{{ url_for('users_add') }}">
+      <div class="row-2">
+        <div><label>Username</label><input name="username" required></div>
+        <div><label>รหัสผ่าน</label><input type="password" name="password" required minlength="4"></div>
+      </div>
+      <div><label>ชื่อ-นามสกุล</label><input name="full_name" required></div>
+      <div class="row-2">
+        <div><label>อีเมล</label><input type="email" name="email"></div>
+        <div><label>เบอร์โทร</label><input name="phone"></div>
+      </div>
+      <div class="row-2">
+        <div><label>ระดับสิทธิ์</label>
+          <select name="role" required>
+            {% for k,v in ROLE_LABELS.items() %}<option value="{{k}}">{{v}}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>ความเชี่ยวชาญ</label><input name="specialty" placeholder="(สำหรับช่าง)"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')">ยกเลิก</button>
+        <button class="btn btn-accent">สร้างผู้ใช้</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="background:var(--bg-elev)">
+  <h3 style="font-size:14px;margin-bottom:12px">ลำดับสิทธิ์การใช้งาน</h3>
+  <table style="font-size:13px">
+    <thead><tr><th>สิทธิ์</th><th>ระดับ</th><th>สามารถทำได้</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge" style="background:#fef3c7;color:#854d0e;border-color:#fde68a">⚡ ผู้ดูแลระบบ</span></td><td>4</td><td>ทุกอย่าง + จัดการผู้ใช้ + ลบทุกตาราง</td></tr>
+      <tr><td><span class="badge badge-prog">★ หัวหน้าฝ่าย</span></td><td>3</td><td>จัดการ อาคาร/ห้อง/อุปกรณ์ + ลบใบแจ้งซ่อม</td></tr>
+      <tr><td><span class="badge badge-done">🔧 ช่าง</span></td><td>2</td><td>รับมอบหมาย + อัพเดทสถานะ + บันทึกผลซ่อม</td></tr>
+      <tr><td><span class="badge badge-normal">ผู้ใช้ทั่วไป</span></td><td>1</td><td>ดูข้อมูล + แจ้งซ่อมใหม่</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

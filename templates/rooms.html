@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block crumb %}ห้อง{% endblock %}
+{% block content %}
+<h2 class="page-title">จัดการห้อง</h2>
+<p class="page-sub">ห้องในแต่ละอาคาร</p>
+
+<div class="card">
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="search-box"><span class="ico">⌕</span><input id="searchBox" placeholder="ค้นหา..." oninput="tableSearch('searchBox','mainTable')"></div>
+    </div>
+    {% if current_user.role in ['manager','admin'] %}<button class="btn btn-accent" onclick="openModal('addModal')">+ เพิ่มห้อง</button>{% endif %}
+  </div>
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead><tr><th>#</th><th>อาคาร</th><th>เลขห้อง</th><th>ประเภท</th><th>ชั้น</th><th>ความจุ</th><th style="width:140px">จัดการ</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="mono" style="color:var(--muted)">{{ r.id }}</td>
+          <td><span class="badge badge-normal mono">{{ r.building_code }}</span> {{ r.building_name }}</td>
+          <td><b>{{ r.room_number }}</b></td><td>{{ r.room_type or '—' }}</td>
+          <td>ชั้น {{ r.floor }}</td><td>{{ r.capacity or '—' }}</td>
+          <td class="actions">
+            {% if current_user.role in ['manager','admin'] %}<button class="btn btn-sm btn-ghost" onclick="openModal('edit{{r.id}}')">✎</button>{% endif %}
+            {% if current_user.role=='admin' %}<a class="btn btn-sm btn-danger" href="{{ url_for('rooms_delete', rid=r.id) }}" onclick="return confirm('ยืนยันการลบ?')">×</a>{% endif %}
+          </td>
+        </tr>
+        {% else %}<tr data-skip="1"><td colspan="7" class="empty">ยังไม่มีข้อมูล</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% for r in rows %}
+<div class="modal" id="edit{{r.id}}">
+  <div class="modal-box">
+    <h3>แก้ไขห้อง</h3>
+    <form method="post" action="{{ url_for('rooms_edit', rid=r.id) }}">
+      <div><label>อาคาร</label>
+        <select name="building_id" required>
+          {% for b in buildings %}<option value="{{b.id}}" {% if b.id==r.building_id %}selected{% endif %}>{{b.code}} · {{b.name}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="row-2">
+        <div><label>เลขห้อง</label><input name="room_number" value="{{ r.room_number }}" required></div>
+        <div><label>ชั้น</label><input type="number" name="floor" value="{{ r.floor }}" min="1"></div>
+      </div>
+      <div class="row-2">
+        <div><label>ประเภท</label><input name="room_type" value="{{ r.room_type or '' }}"></div>
+        <div><label>ความจุ (คน)</label><input type="number" name="capacity" value="{{ r.capacity or '' }}" min="0"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('edit{{r.id}}')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<div class="modal" id="addModal">
+  <div class="modal-box">
+    <h3>เพิ่มห้อง</h3>
+    <form method="post" action="{{ url_for('rooms_add') }}">
+      <div><label>อาคาร</label>
+        <select name="building_id" required>
+          <option value="">— เลือก —</option>
+          {% for b in buildings %}<option value="{{b.id}}">{{b.code}} · {{b.name}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="row-2">
+        <div><label>เลขห้อง</label><input name="room_number" required placeholder="101"></div>
+        <div><label>ชั้น</label><input type="number" name="floor" value="1" min="1"></div>
+      </div>
+      <div class="row-2">
+        <div><label>ประเภท</label><input name="room_type" placeholder="ห้องเรียน"></div>
+        <div><label>ความจุ (คน)</label><input type="number" name="capacity" min="0"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block crumb %}อาคาร{% endblock %}
+{% block content %}
+<h2 class="page-title">จัดการอาคาร</h2>
+<p class="page-sub">อาคารทั้งหมดในระบบ</p>
+
+<div class="card">
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="search-box"><span class="ico">⌕</span><input id="searchBox" placeholder="ค้นหา..." oninput="tableSearch('searchBox','mainTable')"></div>
+    </div>
+    {% if current_user.role in ['manager','admin'] %}<button class="btn btn-accent" onclick="openModal('addModal')">+ เพิ่มอาคาร</button>{% endif %}
+  </div>
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead><tr><th>#</th><th>รหัส</th><th>ชื่ออาคาร</th><th>ที่อยู่</th><th>จำนวนชั้น</th><th style="width:140px">จัดการ</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="mono" style="color:var(--muted)">{{ r.id }}</td>
+          <td><span class="badge badge-normal mono">{{ r.code }}</span></td>
+          <td><b>{{ r.name }}</b></td><td>{{ r.address or '—' }}</td><td>{{ r.floors }}</td>
+          <td class="actions">
+            {% if current_user.role in ['manager','admin'] %}<button class="btn btn-sm btn-ghost" onclick="openModal('edit{{r.id}}')">✎</button>{% endif %}
+            {% if current_user.role=='admin' %}<a class="btn btn-sm btn-danger" href="{{ url_for('buildings_delete', bid=r.id) }}" onclick="return confirm('ยืนยันการลบ?')">×</a>{% endif %}
+          </td>
+        </tr>
+        {% else %}<tr data-skip="1"><td colspan="6" class="empty">ยังไม่มีข้อมูล</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% for r in rows %}
+<div class="modal" id="edit{{r.id}}">
+  <div class="modal-box">
+    <h3>แก้ไขอาคาร</h3>
+    <form method="post" action="{{ url_for('buildings_edit', bid=r.id) }}">
+      <div class="row-2">
+        <div><label>รหัส</label><input name="code" value="{{ r.code }}" required maxlength="16" style="text-transform:uppercase"></div>
+        <div><label>จำนวนชั้น</label><input type="number" name="floors" value="{{ r.floors }}" min="1"></div>
+      </div>
+      <div><label>ชื่ออาคาร</label><input name="name" value="{{ r.name }}" required></div>
+      <div><label>ที่อยู่</label><input name="address" value="{{ r.address or '' }}"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('edit{{r.id}}')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<div class="modal" id="addModal">
+  <div class="modal-box">
+    <h3>เพิ่มอาคาร</h3>
+    <form method="post" action="{{ url_for('buildings_add') }}">
+      <div class="row-2">
+        <div><label>รหัส (ย่อ)</label><input name="code" required maxlength="16" placeholder="ENG" style="text-transform:uppercase"></div>
+        <div><label>จำนวนชั้น</label><input type="number" name="floors" value="1" min="1"></div>
+      </div>
+      <div><label>ชื่ออาคาร</label><input name="name" required placeholder="อาคารวิศวกรรม"></div>
+      <div><label>ที่อยู่</label><input name="address"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')">ยกเลิก</button>
+        <button class="btn btn-accent">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

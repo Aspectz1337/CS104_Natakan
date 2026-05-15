@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block crumb %}ใบแจ้งซ่อม / #{{ r.id }}{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px" class="no-print">
+  <a href="{{ url_for('repairs') }}" class="btn btn-ghost">← กลับ</a>
+  <button class="btn btn-primary" onclick="window.print()">🖨️ พิมพ์</button>
+</div>
+
+<div class="card" id="receipt">
+  <div style="display:flex;justify-content:space-between;align-items:start;border-bottom:2px solid var(--border);padding-bottom:16px;margin-bottom:20px">
+    <div>
+      <h2 style="font-size:22px;margin-bottom:4px">ใบแจ้งซ่อม</h2>
+      <div style="color:var(--muted);font-size:13px">Smart Building Maintenance · v2</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:12px;color:var(--muted)">เลขที่</div>
+      <div style="font-size:22px;font-weight:700;color:var(--accent-2)" class="mono">#{{ '%05d'|format(r.id) }}</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px" class="grid-info">
+    <div>
+      <div class="info-label">สถานะ</div>
+      {% if r.status=='pending' %}<span class="badge badge-wait">{{ STATUS_LABELS[r.status] }}</span>
+      {% elif r.status=='in_progress' %}<span class="badge badge-prog">{{ STATUS_LABELS[r.status] }}</span>
+      {% elif r.status=='done' %}<span class="badge badge-done">{{ STATUS_LABELS[r.status] }}</span>
+      {% else %}<span class="badge badge-cancel">{{ STATUS_LABELS[r.status] }}</span>{% endif %}
+    </div>
+    <div>
+      <div class="info-label">ความเร่งด่วน</div>
+      {% if r.priority=='urgent' %}<span class="badge badge-urgent">🔥 {{ PRIORITY_LABELS[r.priority] }}</span>
+      {% elif r.priority=='high' %}<span class="badge badge-high">↑ {{ PRIORITY_LABELS[r.priority] }}</span>
+      {% elif r.priority=='low' %}<span class="badge badge-low">↓ {{ PRIORITY_LABELS[r.priority] }}</span>
+      {% else %}<span class="badge badge-normal">{{ PRIORITY_LABELS[r.priority] }}</span>{% endif %}
+    </div>
+    <div><div class="info-label">แจ้งเมื่อ</div><div class="info-value">{{ r.reported_at[:16] }}</div></div>
+    <div><div class="info-label">ปิดงาน</div><div class="info-value">{{ r.completed_at[:16] if r.completed_at else '—' }}</div></div>
+  </div>
+
+  <h3 class="sect-title">ข้อมูลอุปกรณ์</h3>
+  <div class="sect-box">
+    <div style="font-size:16px;font-weight:600">{{ r.equip_name }}</div>
+    <div style="font-size:13px;color:var(--muted);margin-top:6px">
+      ประเภท: {{ r.category or '—' }} · S/N: <code>{{ r.serial_no or '—' }}</code><br>
+      ที่ตั้ง: <b>{{ r.building_code }}</b> {{ r.building_name }} → ห้อง {{ r.room_number }} ({{ r.room_type or '—' }})
+    </div>
+  </div>
+
+  <h3 class="sect-title">รายละเอียดอาการ</h3>
+  <div class="sect-box" style="min-height:60px">{{ r.description }}</div>
+
+  {% if r.resolution_note %}
+  <h3 class="sect-title">บันทึกการซ่อม</h3>
+  <div class="sect-box" style="background:var(--accent-soft);border-color:var(--accent)">{{ r.resolution_note }}</div>
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" class="grid-info">
+    <div>
+      <h3 class="sect-title">ผู้แจ้ง</h3>
+      <div class="sect-box">
+        <div style="font-size:15px;font-weight:600">{{ r.reporter_name }}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px">โทร: {{ r.reporter_phone or '—' }}</div>
+      </div>
+    </div>
+    <div>
+      <h3 class="sect-title">ช่างผู้รับผิดชอบ</h3>
+      <div class="sect-box">
+        {% if r.assignee_name %}
+          <div style="font-size:15px;font-weight:600">🔧 {{ r.assignee_name }}</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:4px">
+            เชี่ยวชาญ: {{ r.assignee_specialty or '—' }} · โทร: {{ r.assignee_phone or '—' }}<br>
+            {% if r.started_at %}เริ่มงาน: {{ r.started_at[:16] }}{% endif %}
+          </div>
+        {% else %}<div style="color:var(--muted)">ยังไม่ได้มอบหมาย</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;margin-top:40px;padding-top:20px;border-top:1px dashed var(--border)">
+    <div style="text-align:center;flex:1"><div style="border-top:1px solid var(--text);margin:50px 20px 6px"></div><div style="font-size:12px;color:var(--muted)">ผู้แจ้ง</div></div>
+    <div style="text-align:center;flex:1"><div style="border-top:1px solid var(--text);margin:50px 20px 6px"></div><div style="font-size:12px;color:var(--muted)">ช่างผู้ซ่อม</div></div>
+    <div style="text-align:center;flex:1"><div style="border-top:1px solid var(--text);margin:50px 20px 6px"></div><div style="font-size:12px;color:var(--muted)">ผู้อนุมัติ</div></div>
+  </div>
+</div>
+
+<style>
+.info-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.info-value{font-size:14.5px;font-weight:500}
+.sect-title{font-size:11.5px;margin-bottom:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-top:16px}
+.sect-box{background:var(--bg-elev);padding:14px 16px;border-radius:8px;border:1px solid var(--border)}
+@media print{
+  body{background:#fff}
+  .sidebar,.topbar,.no-print,#toasts{display:none !important}
+  .main{display:block}
+  .content{padding:0;max-width:100%}
+  .card{box-shadow:none;border:none}
+}
+@media(max-width:700px){.grid-info{grid-template-columns:1fr !important}}
+</style>
+{% endblock %}
