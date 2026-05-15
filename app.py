@@ -7,14 +7,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, g, 
 from werkzeug.security import generate_password_hash, check_password_hash
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.environ.get("SMARTBUILD_DB") or os.path.join(APP_DIR, "database.db")
+DB_PATH = os.path.join(APP_DIR, "database.db")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SMARTBUILD_SECRET", "smart-building-secret-change-me")
-app.config.update(
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
-)
+app.secret_key = os.environ.get("SMARTBUILD_SECRET", "smart-building-secret")
 
 # ---------- Role / Status mappings ----------
 ROLE_LEVELS = {"user": 1, "technician": 2, "manager": 3, "admin": 4}
@@ -647,7 +643,7 @@ def repairs_delete(rid):
     return redirect(url_for("repairs"))
 
 
-# Auto-initialize DB on import (idempotent) — required for WSGI hosts like PythonAnywhere
+# Initialize DB on import so it works under WSGI (e.g. PythonAnywhere)
 init_db()
 
 if __name__ == "__main__":
